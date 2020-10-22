@@ -6,10 +6,13 @@ from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
 
+#https://blog.miguelgrinberg.com/post/handling-file-uploads-with-flask
+
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+filePath = "uploads/"
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -31,6 +34,7 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            filePath += filename
             return redirect(url_for('uploaded_file',
                                     filename=filename))
     return render_template('uploadFile.html')
@@ -42,9 +46,57 @@ def uploaded_file(filename):
     return render_template('uploadFile.html', files=files)
     #return send_from_directory(app.config['UPLOAD_FOLDER'],
                                #filename)
+                               
 @app.route('/uploads/<filename>')
 def upload(filename):
     return send_from_directory(app.config['UPLOAD_PATH'], filename)
+
+def detect_bugs():
+    # start with colored image
+    pathImage = filePath
+    widthImg = 600
+    heightImg = 800
+
+    #Gray scale and blur the image
+    img = cv2.imread(pathImage)
+    imgGray = cv2.imread(pathImage, cv2.IMREAD_GRAYSCALE)
+    imgBlur = cv2.GaussianBlur(imgGray, (7, 7), 1)
+    height, width, channels = img.shape
+
+    # Setup SimpleBlobDetector parameters.
+    params = cv2.SimpleBlobDetector_Params()
+
+    # Filter by Area.
+    params.filterByArea = True
+    params.minArea = 400
+    #params.maxArea = 3000
+
+    # Filter by Convexity
+    params.filterByConvexity = True
+    params.minConvexity = 0.00001
+
+    # Filter by Inertia
+    params.filterByInertia = True
+    params.minInertiaRatio = 0.000001
+
+
+    # Create a detector with the parameters
+    detector = cv2.SimpleBlobDetector_create(params)
+
+    #detector = cv2.SimpleBlobDetector_create()
+    keypoints = detector.detect(imgBlur)
+    imgKeyPoints = cv2.drawKeypoints(img, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+
+    # Crop out keypoints
+    # str = ""
+    # for keypoint in keypoints:
+    # str += "1"
+    # x = int(keypoint.pt[0])
+    # y = int(keypoint.pt[1])
+    # size = int(keypoint.size)
+    # cv2.imshow(str, img[max(1,y-2*size): min(height-1,y+2*size), max(1,x-2*size): min(width-1,x+2*size)])
+
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 # db = SQLAlchemy(app)
 #
