@@ -5,6 +5,8 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+import cv2
+import numpy as np
 
 #https://blog.miguelgrinberg.com/post/handling-file-uploads-with-flask
 
@@ -13,6 +15,8 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 filePath = "uploads/"
+pathImage = ""
+detectedImgName = "detected.jpg"
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -20,6 +24,7 @@ def allowed_file(filename):
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
+    filePath = "uploads/"
     if request.method == 'POST':
         # check if the post request has the file part
         if 'file' not in request.files:
@@ -43,17 +48,18 @@ def upload_file():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     files = os.listdir(app.config['UPLOAD_FOLDER'])
-    return render_template('uploadFile.html', files=files)
-    #return send_from_directory(app.config['UPLOAD_FOLDER'],
-                               #filename)
-                               
+    #return render_template('uploadFile.html', files=files)
+    detectedImg = detect_bugs(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    return send_from_directory(app.config['UPLOAD_FOLDER'],
+                               detectedImgName)
+
 @app.route('/uploads/<filename>')
 def upload(filename):
     return send_from_directory(app.config['UPLOAD_PATH'], filename)
 
-def detect_bugs():
+def detect_bugs(filepath):
     # start with colored image
-    pathImage = filePath
+    pathImage = filepath
     widthImg = 600
     heightImg = 800
 
@@ -79,7 +85,6 @@ def detect_bugs():
     params.filterByInertia = True
     params.minInertiaRatio = 0.000001
 
-
     # Create a detector with the parameters
     detector = cv2.SimpleBlobDetector_create(params)
 
@@ -87,7 +92,9 @@ def detect_bugs():
     keypoints = detector.detect(imgBlur)
     imgKeyPoints = cv2.drawKeypoints(img, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
+    cv2.imwrite(os.path.join(UPLOAD_FOLDER , detectedImgName), imgKeyPoints)
 
+    return imgKeyPoints
     # Crop out keypoints
     # str = ""
     # for keypoint in keypoints:
