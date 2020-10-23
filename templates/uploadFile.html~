@@ -10,7 +10,6 @@
     <input type=submit value=Upload>
   </form>
   {% for file in files %}
-    sasfd
      <img src="{{ url_for('upload', filename=file) }}" style="width: 100px">
    {% endfor %}
 </body>
