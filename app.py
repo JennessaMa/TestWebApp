@@ -10,11 +10,10 @@ import numpy as np
 
 #https://blog.miguelgrinberg.com/post/handling-file-uploads-with-flask
 
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = "static/images"
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-filePath = "uploads/"
 pathImage = ""
 detectedImgName = "detected.jpg"
 
@@ -24,7 +23,7 @@ def allowed_file(filename):
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    filePath = "uploads/"
+    filePath = "static/images/"
     if request.method == 'POST':
         # check if the post request has the file part
         if 'file' not in request.files:
@@ -45,17 +44,19 @@ def upload_file():
     return render_template('uploadFile.html')
 
 #FIX: add a close button idk how
+#@app.route('/static/images/<filename>')
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     files = os.listdir(app.config['UPLOAD_FOLDER'])
-    #return render_template('uploadFile.html', files=files)
     detectedImg = detect_bugs(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    return send_from_directory(app.config['UPLOAD_FOLDER'],
-                               detectedImgName)
+    return render_template('uploadFile.html', files=files)
+    #return send_from_directory(app.config['UPLOAD_FOLDER'],
+                               #detectedImgName)
 
-@app.route('/uploads/<filename>')
+@app.route('/static/images/<filename>')
 def upload(filename):
-    return send_from_directory(app.config['UPLOAD_PATH'], filename)
+    #return os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 def detect_bugs(filepath):
     # start with colored image

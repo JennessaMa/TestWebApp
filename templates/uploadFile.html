@@ -10,7 +10,6 @@
     <input type=submit value=Upload>
   </form>
   {% for file in files %}
-     <img src="{{ url_for('upload', filename=file) }}" style="width: 100px">
-     <p>uploaded a file</p>
-   {% endfor %}
+    <img src="{{ url_for('upload', filename=file) }}" style="width: 150px">
+  {% endfor %}
 </body>
