@@ -47,6 +47,10 @@ def detect_bugs(image):
     # Display found keypoints
     return imgKeyPoints
 
+#helper function to display local images
+def showImage(filepath):
+    img = cv2.imread(filepath)
+    st.image(img, width = 300)
 
 def about():
     info = '''
@@ -71,10 +75,15 @@ def about():
      The user takes a picture of the trap and an algorithm automatically classifies
      and counts the various pests present. </p>
 
-     <img src="uploads/detected.jpg" height="600px">
     '''
-    st.markdown(info, unsafe_allow_html=True)
-
+    st.markdown(info, unsafe_allow_html=True) #can't detect relative path to image
+    col1, col2, = st.beta_columns(2)
+    with col1:
+        st.header("Before")
+        showImage("uploads/flypaper1.jpg")
+    with col2:
+        st.header("After")
+        showImage("uploads/detected.jpg")
 
 def main():
     background_img = '''
