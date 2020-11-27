@@ -6,6 +6,13 @@ import numpy as np
 import os
 import base64
 
+from streamlit.hashing import _CodeHasher
+from streamlit.report_thread import get_report_ctx
+from streamlit.server.server import Server
+
+def display_state_values(state):
+    st.write("Accuracy: ", state.numBugs / state.totalImgs)
+
 def detect_bugs(image):
     #Gray scale and blur the image
     img = np.array(image.convert('RGB'))
@@ -36,6 +43,11 @@ def detect_bugs(image):
     keypoints = detector.detect(imgBlur)
     imgKeyPoints = cv2.drawKeypoints(img, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
+    state = _get_state()
+    state.numBugs = 0
+    state.totalImgs = len(keypoints)
+    display_state_values(state)
+
     # Crop out keypoints
     if not os.path.exists('immages'):
         os.mkdir("immages")
@@ -46,7 +58,12 @@ def detect_bugs(image):
         y = int(keypoint.pt[1])
         size = int(keypoint.size)
         crop = img[max(1,y-2*size): min(height-1,y+2*size), max(1,x-2*size): min(width-1,x+2*size)]
-        st.image(crop, use_column_width = False)
+        key = keypoint
+        col1, col2, = st.beta_columns(2)
+        with col1:
+            st.image(crop, use_column_width = False)
+        with col2:
+            state.numBugs += st.button("Click if bug!", keypoint)
         cv2.imwrite("immages/" + str(filename) + ".jpg", crop)
 
     zipdir("immages")
@@ -78,7 +95,7 @@ def zipdir(path):
     #     </a>'
     href = '''
     <style>
-    
+
     </style>
     <a href="#">Click here to download </a>
     '''
@@ -90,6 +107,7 @@ def zipdir(path):
     #         Click to download\
     #         </a>'
     st.markdown(href, unsafe_allow_html=True)
+
 
 def about():
     info = '''
@@ -301,6 +319,7 @@ def about():
     # components.html(slideshow)
 
 def main():
+    state = _get_state()
     background_img = '''
     <style>
         body {
@@ -341,6 +360,80 @@ def main():
     elif choice == "About":
     	about()
 
+class _SessionState:
+
+    def __init__(self, session, hash_funcs):
+        """Initialize SessionState instance."""
+        self.__dict__["_state"] = {
+            "data": {},
+            "hash": None,
+            "hasher": _CodeHasher(hash_funcs),
+            "is_rerun": False,
+            "session": session,
+        }
+
+    def __call__(self, **kwargs):
+        """Initialize state data once."""
+        for item, value in kwargs.items():
+            if item not in self._state["data"]:
+                self._state["data"][item] = value
+
+    def __getitem__(self, item):
+        """Return a saved state value, None if item is undefined."""
+        return self._state["data"].get(item, None)
+
+    def __getattr__(self, item):
+        """Return a saved state value, None if item is undefined."""
+        return self._state["data"].get(item, None)
+
+    def __setitem__(self, item, value):
+        """Set state value."""
+        self._state["data"][item] = value
+
+    def __setattr__(self, item, value):
+        """Set state value."""
+        self._state["data"][item] = value
+
+    def clear(self):
+        """Clear session state and request a rerun."""
+        self._state["data"].clear()
+        self._state["session"].request_rerun()
+
+    def sync(self):
+        """Rerun the app with all state values up to date from the beginning to fix rollbacks."""
+
+        # Ensure to rerun only once to avoid infinite loops
+        # caused by a constantly changing state value at each run.
+        #
+        # Example: state.value += 1
+        if self._state["is_rerun"]:
+            self._state["is_rerun"] = False
+
+        elif self._state["hash"] is not None:
+            if self._state["hash"] != self._state["hasher"].to_bytes(self._state["data"], None):
+                self._state["is_rerun"] = True
+                self._state["session"].request_rerun()
+
+        self._state["hash"] = self._state["hasher"].to_bytes(self._state["data"], None)
+
+
+def _get_session():
+    session_id = get_report_ctx().session_id
+    session_info = Server.get_current()._get_session_info(session_id)
+
+    if session_info is None:
+        raise RuntimeError("Couldn't get your Streamlit Session object.")
+
+    return session_info.session
+
+
+def _get_state(hash_funcs=None):
+    session = _get_session()
+
+    if not hasattr(session, "_custom_session_state"):
+        session._custom_session_state = _SessionState(session, hash_funcs)
+
+    return session._custom_session_state
 
 if __name__ == "__main__":
     main()
